@@ -9,9 +9,9 @@ import json # type: ignore
 filename = 'dataset.V1.json'
 with open(filename, 'rb') as f:
     #extracting desired fields from json
-    objects = ijson.items(f, 'item')
+    records = ijson.items(f, 'item')
 
-    for record in objects:
+    for record in records:
         extract  = {
             "molding_machine_id": record.get("molding_machine_id"),
             "object_detection": record.get("object_detection"),
