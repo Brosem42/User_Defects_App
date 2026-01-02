@@ -1,0 +1,19 @@
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Secrets and Config
+.env
+docDB-keypair.pem
+global-bundle.pem
+
+# Build files
+archive.zip
+dist/
+build/
+
+# IDE files
+.vscode/
+.DS_Store
