@@ -22,8 +22,9 @@ async function connectToDatabase() {
         connectTimeoutMS: 5000,
         socketTimeoutMS: 30000
     });
-    cachedDb = client.db('user_defects');
-    return cachedDb;
+    //fix cache typo
+    cacheDb = client.db('user_defects');
+    return cacheDb;
 }
 
 // optimized handler function to allow lambda to wait for event loop to be empty
