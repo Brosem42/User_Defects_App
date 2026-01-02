@@ -34,8 +34,17 @@ exports.handler = async (event, context) => {
     const db = await connectToDatabase();
     const collection = db.collection('defects');
 
-    // APPsync resolver 
-    const results = await collection.find({}).toArray();
+    // only fetch required fields to optimize performance and reduce payload size
+    const results = await collection.find({}, {
+        projection: {
+            molding_machine_id: 1,
+            timestamp: 1,
+            "object_detection.reject": 1,
+            "object_detection.contamination_defect.pixel_severity": 1
+            // We EXCLUDE molding-machine-state to keep the payload under 6MB
+        }
+    }).toArray();
+
     return results.map(doc => ({
         ...doc,
         id: doc._id.toString()
