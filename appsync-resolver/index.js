@@ -44,9 +44,13 @@ exports.handler = async (event, context) => {
             // We EXCLUDE molding-machine-state to keep the payload under 6MB
         }
     }).toArray();
-
+    
     return results.map(doc => ({
-        ...doc,
-        id: doc._id.toString()
+        id: doc._id.toString(),
+        machine: doc.molding_machine_id, 
+        rejectCount: doc.object_detection?.reject || 0,
+        severity: doc.object_detection?.contamination_defect?.pixel_severity || 0,
+        timestamp: doc.timestamp
     }));
 };
+
