@@ -8,8 +8,7 @@ yarn-error.log*
 .env
 docDB-keypair.pem
 global-bundle.pem
-aws-exports-amplify.js
-
+./aws-exports-amplify.js
 # Build files
 archive.zip
 dist/
