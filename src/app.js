@@ -23,8 +23,8 @@ function App() {
             const response = await Client.graphql({
                 query: processTask, 
                 variables: {
-                    task: "Analyze machine defects",
-                    sessionId: "user-1"
+                    task: "Show me machine data",
+                    sessionId: "123"
                 }
             });
 
