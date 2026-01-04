@@ -32,8 +32,10 @@ function App() {
             const { summary: agentSummary, nivoData } = response.data.processTask;
 
             setSummary(agentSummary);
-            setData(JSON.parse(nivoData));
-
+            
+            const parsedData = typeof nivoData === "string" ? JSON.parse(nivoData) : nivoData;
+            setData(parsedData);
+            
         } catch (error) {
             console.error("Unable to fetch defects:", error);  
         }
