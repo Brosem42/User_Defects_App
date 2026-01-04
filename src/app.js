@@ -62,6 +62,6 @@ function App() {
                     <p>Connecting to DocumentDB via AppSync...</p>
                 )}
         </div>
-    )};
-
+    );
+}
  export default App;
