@@ -56,7 +56,7 @@ exports.handler = async (event, context) => {
 
     return {
         summary: `Successfully processed your request: "${userTask}". Found ${results.length} results for analysis.`,
-        nivoData: JSON.stringify(nivoReadyData) 
+        nivoData: nivoReadyData
     };
 };
 
