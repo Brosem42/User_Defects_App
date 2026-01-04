@@ -44,14 +44,20 @@ exports.handler = async (event, context) => {
             // We EXCLUDE molding-machine-state to keep the payload under 6MB
         }
     }).toArray();
-    
-    return results.map(doc => ({
+
+    const nivoReadyData = results.map(doc => ({
         id: doc._id.toString(),
         machine: doc.molding_machine_id, 
-        rejectCount: doc.object_detection?.reject || 0,
-        severity: doc.object_detection?.contamination_defect?.pixel_severity || 0,
+        rejectCount: doc.object_detection?.reject ? 1 : 0,
+        severity: doc.object_detection?.contamination_defect?.pixel_severity?.value || 0,
         timestamp: doc.timestamp
     }));
+    const userTask = event.arguments.task;
+
+    return {
+        summary: `Successfully processed your request: "${userTask}". Found ${results.length} results for analysis.`,
+        nivoData: JSON.stringify(nivoReadyData) 
+    };
 };
 
 
