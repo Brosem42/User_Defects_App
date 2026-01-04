@@ -12,35 +12,50 @@ import { listDefects } from './graphql/queries.js';
 Amplify.configure(config);
 const Client = generateClient();
 
+// Style object moved outside the component for 2026 performance standards
+const buttonStyle = {
+    padding: "10px 20px",
+    backgroundColor: "#0a84ff", 
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontSize: "16px",
+    marginRight: "10px",
+    fontWeight: "600"
+};
+
 function App() {
     const [data, setData] = useState([]);
     const [summary, setSummary] = useState(""); 
-    // loads init data
+
     useEffect(() => {
         fetchInitialData();
     }, []);
 
-// flattens nested data
+    // initial load of all defects
     const fetchInitialData = async () => {
         try {
             const response = await Client.graphql({ query: listDefects });
-            const rawData = response.data.listDefects;
+            const rawData = response.data.listDefects || [];
 
+            // Flattening the nested dB data
             const flattened = rawData.map(item => ({
                 machine: item.molding_machine_id,
                 rejectCount: item.object_detection?.reject ? 1 : 0,
                 severity: item.object_detection?.contamination_defect?.pixel_severity?.value || 0
             }));
-
+//prevent crash
             setData(flattened);
-            setSummary("Initial data view loaded from DocumentDB.");
+            setSummary("System: Initial data view loaded successfully.");
         } catch (error) {
-            console.error("Unable to fetch current defects list:", error);
-            setSummary("Error: Could not load data.");
+            console.error("Initial fetch failed:", error);
+            setSummary("Error: Unable to connect to DocumentDB.");
+            setData([]); 
         }
     };
 
-//triggers autogen task
+    // Agent Task
     const fetchAgentTask = async (userPrompt) => {
         try {
             const response = await Client.graphql({
@@ -51,73 +66,96 @@ function App() {
                 }
             });
 
-            const { summary: agentSummary, nivoData } = response.data.processTask;
+            const result = response.data?.processTask;
+            if (!result) throw new Error("No data returned");
 
-            setSummary(agentSummary);
+            setSummary(result.summary);
             
-            // parse JSON- chaining method to prevent crashses if DocumentDB has missing fields
-            const parsedData = typeof nivoData === "string" ? JSON.parse(nivoData) : nivoData;
-            setData(parsedData);
+            // Handle string JSON from Lambda
+            const parsedData = typeof result.nivoData === "string" ? JSON.parse(result.nivoData) : result.nivoData;
+            
+            // safety measure--> ensure data is an array
+            setData(Array.isArray(parsedData) ? parsedData : []);
 
         } catch (error) {
-            console.error("Unable to fetch agent analysis:", error);
-            setSummary("Error: AI Agent was unable to process your request, contact Admin for more details.");
+            console.error("Agent fetch failed:", error);
+            setSummary("Error: AI Agent was unable to process request.");
+            setData([]); 
         }
     };
-
+//space gray theme for UI
     return (
-        <div style={{ height: "700px", width: "100%", padding: "20px", fontFamily: "sans-serif" }}>
-            <h2>Defects Analytics Dashboard</h2>
-            
-            {/* Summary Message from the AI Agent */}
-            <p style={{ 
-                fontStyle: "italic", 
-                backgroundColor: "#f4f4f4", 
-                padding: "10px", 
-                borderRadius: "5px" 
-            }}>
-                {summary || "Connecting to AppSync..."}
-            </p>
+    <div style={{ 
+        backgroundColor: "#2c2c2e", 
+        minHeight: "100vh", 
+        color: "#ffffff",           
+        padding: "40px",           
+        fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+    }}>
+        <h2 style={{ fontSize: "28px", marginBottom: "10px" }}>Defects Analytics Dashboard</h2>
+        
+        <p style={{ 
+            fontStyle: "italic", 
+            color: "#d1d1d6", 
+            backgroundColor: "#3a3a3c", 
+            padding: "15px", 
+            borderRadius: "8px",
+            fontSize: "18px",
+            marginBottom: "30px"
+        }}>
+            {summary || "Analyzing machine data..."}
+        </p>
 
-            {/* User Customization Controls */}
-            <div style={{ marginBottom: "20px" }}>
-                <button onClick={() => fetchInitialData()}>Reset View</button>
-                <button 
-                    style={{ marginLeft: "10px" }}
-                    onClick={() => fetchAgentTask("Show me machine data with high severity")}
-                >
-                    Run AI Analysis
-                </button>
-            </div>
-
-            {/* Chart plots */}
-            {data.length > 0 ? (
-                <div style={{ height: "500px" }}>
-                    <ResponsiveBar
-                        data={data}
-                        keys={['rejectCount', 'severity']}
-                        indexBy="machine"
-                        margin={{ top: 50, right: 130, bottom: 50, left: 60 }}
-                        padding={0.3}
-                        valueScale={{ type: "linear" }}
-                        colors= {{ scheme: "nivo" }}
-                        axisBottom={{
-                            legend: "Machine ID",
-                            legendPosition: "middle",
-                            legendOffset: 40
-                        }}
-                        axisLeft={{
-                            legend: "Count / Severity",
-                            legendPosition: "middle",
-                            legendOffset: -50
-                        }}
-                    />
-                </div>
-            ) : (
-                <p>Retrieving data from database...</p>
-            )}
+        <div style={{ marginBottom: "20px" }}>
+            <button onClick={() => fetchInitialData()} style={buttonStyle}>Reset View</button>
+            <button onClick={() => fetchAgentTask("Analyze defects for all machines")} style={buttonStyle}>Run AI Analysis</button>
         </div>
+
+        {data.length > 0 ? (
+            <div style={{ 
+                height: "500px", 
+                backgroundColor: "#1c1c1e", 
+                borderRadius: "12px", 
+                padding: "20px",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.5)"
+            }}>
+                <ResponsiveBar
+                    data={data}
+                    keys={['rejectCount', 'severity']}
+                    indexBy="machine"
+                    margin={{ top: 50, right: 50, bottom: 80, left: 80 }}
+                    padding={0.3}
+                    colors={{ scheme: "nivo" }}
+                    theme={{
+                        textColor: "#ffffff",
+                        fontSize: 14,
+                        axis: {
+                            domain: { line: { stroke: "#777", strokeWidth: 1 } },
+                            legend: { text: { fontSize: 16, fill: "#ffffff", fontWeight: "bold" } },
+                            ticks: { text: { fill: "#d1d1d6", fontSize: 12 }, line: { stroke: "#777", strokeWidth: 1 } }
+                        },
+                        grid: { line: { stroke: "#444", strokeWidth: 1 } },
+                        tooltip: { container: { background: "#333", color: "#fff", fontSize: 14 } }
+                    }}
+                    axisBottom={{
+                        legend: "Machine ID",
+                        legendPosition: "middle",
+                        legendOffset: 50
+                    }}
+                    axisLeft={{
+                        legend: "Metrics",
+                        legendPosition: "middle",
+                        legendOffset: -60
+                    }}
+                />
+            </div>
+        ) : (
+            <div style={{ textAlign: "center", marginTop: "100px", color: "#d1d1d6" }}>
+                <p>Retrieving data from AWS DocumentDB...</p>
+            </div>
+        )}
+    </div>
     );
-}
+} 
 
 export default App;
