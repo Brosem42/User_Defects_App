@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
 import { ResponsiveBar } from "@nivo/bar";
@@ -8,14 +8,14 @@ import config from './aws-exports-amplify.js';
 import { processTask } from './graphql/mutations.js';
 import { listDefects } from './graphql/queries.js';
 
-// config amplify
+// configure amplify
 Amplify.configure(config);
 const Client = generateClient();
 
 // Style object moved outside the component for 2026 performance standards
 const buttonStyle = {
     padding: "10px 20px",
-    backgroundColor: "#0a84ff", 
+    backgroundColor: "#0a84ff", // Apple-style Blue
     color: "white",
     border: "none",
     borderRadius: "6px",
@@ -28,34 +28,48 @@ const buttonStyle = {
 function App() {
     const [data, setData] = useState([]);
     const [summary, setSummary] = useState(""); 
+    const [selectedMachine, setSelectedMachine] = useState("All Machines");
+    const [plotMetric, setPlotMetric] = useState("rejectCount"); // Default metric
 
     useEffect(() => {
         fetchInitialData();
     }, []);
 
-    // initial load of all defects
+    // Helper to get unique machine IDs for the dropdown
+    const uniqueMachines = useMemo(() => {
+        const machines = new Set(data.map(item => item.machine));
+        return ["All Machines", ...Array.from(machines)];
+    }, [data]);
+
+    // Filtered data based on user selection
+    const filteredData = useMemo(() => {
+        if (selectedMachine === "All Machines") return data;
+        return data.filter(item => item.machine === selectedMachine);
+    }, [data, selectedMachine]);
+
+    // Method for the initial load of all defects
     const fetchInitialData = async () => {
         try {
             const response = await Client.graphql({ query: listDefects });
             const rawData = response.data.listDefects || [];
 
-            // Flattening the nested dB data
+            // Flattening the nested DocumentDB data
             const flattened = rawData.map(item => ({
                 machine: item.molding_machine_id,
                 rejectCount: item.object_detection?.reject ? 1 : 0,
                 severity: item.object_detection?.contamination_defect?.pixel_severity?.value || 0
             }));
-//prevent crash
+
             setData(flattened);
             setSummary("System: Initial data view loaded successfully.");
         } catch (error) {
             console.error("Initial fetch failed:", error);
             setSummary("Error: Unable to connect to DocumentDB.");
-            setData([]); 
+            setData([]); // Prevent e.map crash
         }
     };
 
-    // Agent Task
+    // Method for the AI Agent Task
     const fetchAgentTask = async (userPrompt) => {
         try {
             const response = await Client.graphql({
@@ -71,25 +85,25 @@ function App() {
 
             setSummary(result.summary);
             
-            // Handle string JSON from Lambda
+            // Handle stringified JSON from Lambda
             const parsedData = typeof result.nivoData === "string" ? JSON.parse(result.nivoData) : result.nivoData;
             
-            // safety measure--> ensure data is an array
+            // Safety check: Ensure it is an array for Nivo
             setData(Array.isArray(parsedData) ? parsedData : []);
 
         } catch (error) {
             console.error("Agent fetch failed:", error);
             setSummary("Error: AI Agent was unable to process request.");
-            setData([]); 
+            setData([]); // Prevent e.map crash
         }
     };
-//space gray theme for UI
+
     return (
     <div style={{ 
-        backgroundColor: "#2c2c2e", 
+        backgroundColor: "#2c2c2e", // Space Gray background
         minHeight: "100vh", 
-        color: "#ffffff",           
-        padding: "40px",           
+        color: "#ffffff",           // Global white text
+        padding: "40px",            // Moves content away from corners
         fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
     }}>
         <h2 style={{ fontSize: "28px", marginBottom: "10px" }}>Defects Analytics Dashboard</h2>
@@ -109,19 +123,32 @@ function App() {
         <div style={{ marginBottom: "20px" }}>
             <button onClick={() => fetchInitialData()} style={buttonStyle}>Reset View</button>
             <button onClick={() => fetchAgentTask("Analyze defects for all machines")} style={buttonStyle}>Run AI Analysis</button>
+
+            {/* --- CUSTOMIZATION UI START --- */}
+            <select style={{ marginLeft: "20px" }} onChange={(e) => setSelectedMachine(e.target.value)} value={selectedMachine}>
+                {uniqueMachines.map(machine => (
+                    <option key={machine} value={machine}>{machine}</option>
+                ))}
+            </select>
+
+            <select style={{ marginLeft: "10px" }} onChange={(e) => setPlotMetric(e.target.value)} value={plotMetric}>
+                <option value="rejectCount">Object Detection (Reject)</option>
+                <option value="severity">Pixel Severity Value</option>
+            </select>
+            {/* --- CUSTOMIZATION UI END --- */}
         </div>
 
-        {data.length > 0 ? (
+        {filteredData.length > 0 ? (
             <div style={{ 
-                height: "500px", 
+                height: "500px", // Explicit height required for Nivo
                 backgroundColor: "#1c1c1e", 
                 borderRadius: "12px", 
                 padding: "20px",
                 boxShadow: "0 4px 20px rgba(0,0,0,0.5)"
             }}>
                 <ResponsiveBar
-                    data={data}
-                    keys={['rejectCount', 'severity']}
+                    data={filteredData} // Use the filtered data here
+                    keys={[plotMetric]} // Plot the selected metric
                     indexBy="machine"
                     margin={{ top: 50, right: 50, bottom: 80, left: 80 }}
                     padding={0.3}
@@ -156,6 +183,6 @@ function App() {
         )}
     </div>
     );
-} 
+}
 
 export default App;
