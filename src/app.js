@@ -1,4 +1,3 @@
-// react connnection to documentDB for amplify config 
 import React, { useEffect, useState } from "react";
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
@@ -16,7 +15,7 @@ function App() {
     const [summary, setSummary] = useState(""); 
 
     useEffect(() => {
-        fetchDefects()
+        fetchDefects();
     }, []);
 
     const fetchDefects = async () => {
@@ -33,9 +32,10 @@ function App() {
 
             setSummary(agentSummary);
             
+            // Handle double-stringification or raw objects from 2026 AppSync
             const parsedData = typeof nivoData === "string" ? JSON.parse(nivoData) : nivoData;
             setData(parsedData);
-            
+
         } catch (error) {
             console.error("Unable to fetch defects:", error);  
         }
@@ -60,10 +60,11 @@ function App() {
                         legendOffset: 40
                     }}
                 />
-                ) : (
-                    <p>Connecting to DocumentDB via AppSync...</p>
-                )}
+            ) : (
+                <p>Connecting to DocumentDB via AppSync...</p>
+            )}
         </div>
     );
 }
- export default App;
+
+export default App;
